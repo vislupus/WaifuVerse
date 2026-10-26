@@ -24,11 +24,52 @@ def f(v: str) -> str:
     return s if s else "0"
 
 
+NUM = re.compile(r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?")
+
+
+def normalize_path(d: str) -> str:
+    """Rewrites SVG path data with every number separated by a space.
+
+    SVG allows compact forms such as "a2 2 0 01-3-4" where the two arc flags are
+    glued together; Compose's path parser is not guaranteed to accept that, so
+    arc flags are tokenised one character at a time and everything is re-joined
+    with explicit separators.
+    """
+    out = []
+    i = 0
+    cmd = ""
+    arg_index = 0
+    while i < len(d):
+        c = d[i]
+        if c.isalpha():
+            cmd = c
+            arg_index = 0
+            out.append(c)
+            i += 1
+            continue
+        if c in " ,\t\n\r":
+            i += 1
+            continue
+        if cmd in "aA" and arg_index % 7 in (3, 4):
+            # Arc flags are exactly one character (0 or 1).
+            out.append(c)
+            arg_index += 1
+            i += 1
+            continue
+        m = NUM.match(d, i)
+        if not m:
+            raise ValueError(f"cannot parse path data near: {d[i:i+20]!r}")
+        out.append(m.group(0))
+        arg_index += 1
+        i = m.end()
+    return " ".join(out)
+
+
 def element_to_path(el) -> str | None:
     tag = el.tag.replace(NS, "")
     a = el.attrib
     if tag == "path":
-        return a["d"].strip()
+        return normalize_path(a["d"].strip())
     if tag == "circle":
         cx, cy, r = float(a["cx"]), float(a["cy"]), float(a["r"])
         return (f"M{f(str(cx - r))} {f(str(cy))}"

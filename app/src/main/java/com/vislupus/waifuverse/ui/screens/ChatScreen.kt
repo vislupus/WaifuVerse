@@ -194,7 +194,6 @@ fun ChatScreen(vm: MainViewModel) {
 
 @Composable
 fun ChatContent(state: ChatUiState, actions: ChatActions) {
-    val texts = LocalTexts.current
     val waifu = state.selectedWaifu
     val accent = if (waifu != null) colorFromHex(waifu.accentHex, MaterialTheme.colorScheme.primary) else MaterialTheme.colorScheme.primary
 

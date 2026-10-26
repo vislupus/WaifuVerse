@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -88,27 +87,29 @@ fun SpriteStage(
 
 @Composable
 private fun SpriteCanvas(sprite: SpriteLoader.Sprite, mouthFrame: Int, modifier: Modifier = Modifier) {
-    val breathing = if (AppConfig.BREATHING_ENABLED) {
-        val transition = rememberInfiniteTransition(label = "breathing")
-        val phase by transition.animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = AppConfig.BREATHING_PERIOD_MS, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart,
-            ),
-            label = "phase",
-        )
-        // Smooth sine wave 0..1
-        (0.5f - 0.5f * sin(phase * 2f * PI.toFloat() - PI.toFloat() / 2f))
-    } else {
-        0f
-    }
+    // The phase is read inside graphicsLayer (draw phase), so the animation
+    // never recomposes the stage; it only re-draws the layer.
+    val transition = rememberInfiniteTransition(label = "breathing")
+    val phase = transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = AppConfig.BREATHING_PERIOD_MS, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "phase",
+    )
     val frameIndex = mouthFrame.coerceIn(0, sprite.mouths.size - 1)
     val mouth = sprite.mouths[frameIndex]
 
     Canvas(
         modifier = modifier.graphicsLayer {
+            // Smooth 0..1 sine wave derived from the linear phase.
+            val breathing = if (AppConfig.BREATHING_ENABLED) {
+                0.5f - 0.5f * sin(phase.value * 2f * PI.toFloat() - PI.toFloat() / 2f)
+            } else {
+                0f
+            }
             val s = 1f + AppConfig.BREATHING_SCALE_AMPLITUDE * breathing
             scaleX = s
             scaleY = s
