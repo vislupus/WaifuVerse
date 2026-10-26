@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Only the launcher label lives here; all other texts are in config/TextsConfig.kt -->
+    <string name="app_name">WaifuVerse</string>
+</resources>
