@@ -111,7 +111,7 @@ Requires `pip install pillow numpy`.
   * **Gemini Live**: microphone PCM16 16 kHz → `realtimeInput.audio`; models
     from `ModelConfig.MODEL_CHAIN` (`gemini-3.8-live` → `gemini-3.1-flash-live-preview` → …)
   * **OpenAI Realtime**: microphone PCM16 24 kHz → `input_audio_buffer.append`;
-    models from `ModelConfig.OPENAI_MODEL_CHAIN` (`gpt-realtime-1.5` → `gpt-realtime` → …),
+    models from `ModelConfig.OPENAI_MODEL_CHAIN` (`gpt-realtime-2` → `gpt-realtime-2.1` → `gpt-realtime-1.5` → …),
     server-side voice activity detection, transcription with `gpt-4o-mini-transcribe`.
     The temperature / top-p / top-k sliders apply to Gemini only.
 * Provider → PCM16 24 kHz → `AudioTrack`; the loudness of what is *currently

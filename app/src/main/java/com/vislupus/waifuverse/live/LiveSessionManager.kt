@@ -42,7 +42,7 @@ class LiveSessionManager(context: Context, private val scope: CoroutineScope) {
         data class AssistantTranscript(val delta: String) : Event
         object TurnComplete : Event
         object Interrupted : Event
-        data class ModelFallback(val from: String, val to: String) : Event
+        data class ModelFallback(val from: String, val to: String, val reason: String) : Event
         data class Connected(val model: String) : Event
         data class Ended(val error: String?, val allModelsFailed: Boolean = false) : Event
     }
@@ -125,6 +125,7 @@ class LiveSessionManager(context: Context, private val scope: CoroutineScope) {
 
         connectJob = scope.launch(Dispatchers.IO) {
             var connected: LiveSession? = null
+            var lastReason = ""
             for ((index, model) in modelChain.withIndex()) {
                 if (!isSessionActive) return@launch
                 when (val result = connectOnce(model, null)) {
@@ -137,13 +138,14 @@ class LiveSessionManager(context: Context, private val scope: CoroutineScope) {
                         return@launch
                     }
                     is ConnectResult.Failed -> {
+                        lastReason = result.reason
                         val next = modelChain.getOrNull(index + 1)
-                        if (next != null) _events.tryEmit(Event.ModelFallback(model, next))
+                        if (next != null) _events.tryEmit(Event.ModelFallback(model, next, result.reason))
                     }
                 }
             }
             if (connected == null) {
-                finish(null, allModelsFailed = true)
+                finish(lastReason.ifBlank { null }, allModelsFailed = true)
                 return@launch
             }
             session = connected
@@ -177,6 +179,7 @@ class LiveSessionManager(context: Context, private val scope: CoroutineScope) {
             Provider.OPENAI -> OpenAiRealtimeSession(
                 httpClient, apiKey, model,
                 SetupBuilder.openAiSessionUpdate(w, systemPrompt),
+                SetupBuilder.openAiLegacySessionUpdate(w, systemPrompt),
                 SessionListener(deferred),
             )
         }
@@ -244,7 +247,13 @@ class LiveSessionManager(context: Context, private val scope: CoroutineScope) {
 
         override fun onFailure(session: LiveSession, error: Throwable, httpCode: Int?, body: String?) {
             if (!setupResult.isCompleted) {
-                setupResult.complete(classify(httpCode ?: -1, error.message ?: "", body))
+                val detail = buildString {
+                    if (httpCode != null) append("HTTP ").append(httpCode).append(' ')
+                    append(error.message ?: error.javaClass.simpleName)
+                    val snippet = body?.trim()?.take(200)
+                    if (!snippet.isNullOrEmpty()) append(" · ").append(snippet)
+                }
+                setupResult.complete(classify(httpCode ?: -1, detail, body))
                 return
             }
             if (isCurrent(session) && !reconnecting) finish(error.message ?: error.javaClass.simpleName)

@@ -50,10 +50,11 @@ object ModelConfig {
 
     /** OpenAI models tried in this order (newest first). The first can be overridden from Settings. */
     val OPENAI_MODEL_CHAIN: List<String> = listOf(
+        "gpt-realtime-2",
+        "gpt-realtime-2.1",
         "gpt-realtime-1.5",
         "gpt-realtime",
         "gpt-realtime-mini",
-        "gpt-4o-realtime-preview",
     )
 
     /** OpenAI Realtime voices selectable per waifu. */

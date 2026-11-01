@@ -27,8 +27,13 @@ class OpenAiRealtimeSession(
     private val apiKey: String,
     override val model: String,
     private val sessionUpdate: JSONObject,
+    /** Older "session.update" shape, tried once if the server rejects the current one. */
+    private val legacySessionUpdate: JSONObject?,
     private val listener: LiveSession.Listener,
 ) : LiveSession {
+
+    @Volatile
+    private var legacyTried = false
 
     private var webSocket: WebSocket? = null
     private val closed = AtomicBoolean(false)
@@ -47,7 +52,6 @@ class OpenAiRealtimeSession(
         val request = Request.Builder()
             .url("${ModelConfig.OPENAI_REALTIME_ENDPOINT}?model=$model")
             .header("Authorization", "Bearer $apiKey")
-            .header("OpenAI-Beta", "realtime=v1")
             .build()
         webSocket = httpClient.newWebSocket(request, socketListener)
     }
@@ -135,8 +139,14 @@ class OpenAiRealtimeSession(
                 val message = err?.optString("message", "") ?: ""
                 val code = err?.optString("code", "") ?: ""
                 if (!setupDone) {
-                    // The setup itself was rejected (bad model, bad parameters...).
-                    closeWithFailure(IllegalStateException("$code $message".trim()))
+                    // The setup was rejected. Try the older session format once, then give up.
+                    val legacy = legacySessionUpdate
+                    if (legacy != null && !legacyTried) {
+                        legacyTried = true
+                        webSocket?.send(legacy.toString())
+                    } else {
+                        closeWithFailure(IllegalStateException("$code $message".trim()))
+                    }
                 }
                 // Errors after setup (e.g. an empty audio buffer) are not fatal; ignore them.
             }
