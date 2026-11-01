@@ -85,6 +85,9 @@ object ThemeConfig {
     /** Height of the bottom navigation bar (dp). */
     const val BOTTOM_BAR_HEIGHT = 68
 
+    /** Vertical distance between the actions of the stage menu on the Chat page (dp). */
+    const val STAGE_MENU_SPACING = 14
+
     /** Size of the round microphone / call button on the Chat page (dp). */
     const val MIC_BUTTON_SIZE = 56
 

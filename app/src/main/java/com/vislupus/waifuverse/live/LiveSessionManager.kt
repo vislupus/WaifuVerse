@@ -7,6 +7,7 @@ import android.os.Build
 import com.vislupus.waifuverse.config.AppConfig
 import com.vislupus.waifuverse.config.AudioMode
 import com.vislupus.waifuverse.config.ModelConfig
+import com.vislupus.waifuverse.config.Provider
 import com.vislupus.waifuverse.data.Waifu
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -75,7 +76,7 @@ class LiveSessionManager(context: Context, private val scope: CoroutineScope) {
 
     // Session state (accessed from several threads; guarded by @Volatile + simple ownership).
     @Volatile
-    private var session: GeminiLiveSession? = null
+    private var session: LiveSession? = null
     private var input: AudioInput? = null
     private var output: AudioOutput? = null
     private var tickerJob: Job? = null
@@ -89,6 +90,7 @@ class LiveSessionManager(context: Context, private val scope: CoroutineScope) {
     private var reconnecting = false
 
     private var apiKey = ""
+    private var provider = ModelConfig.DEFAULT_PROVIDER
     private var waifu: Waifu? = null
     private var systemPrompt = ""
     private var audioMode = ModelConfig.DEFAULT_AUDIO_MODE
@@ -98,6 +100,7 @@ class LiveSessionManager(context: Context, private val scope: CoroutineScope) {
     val isSessionActive: Boolean get() = _status.value != Status.IDLE
 
     fun start(
+        provider: Provider,
         apiKey: String,
         modelChain: List<String>,
         waifu: Waifu,
@@ -107,18 +110,21 @@ class LiveSessionManager(context: Context, private val scope: CoroutineScope) {
         autoStartMic: Boolean,
     ) {
         if (isSessionActive) return
+        this.provider = provider
         this.apiKey = apiKey
         this.waifu = waifu
         this.systemPrompt = systemPrompt
         this.audioMode = audioMode
-        this.muteMicWhileSpeaking = muteMicWhileSpeaking
+        // MEDIA mode has no hardware echo cancellation: without half-duplex she hears herself.
+        this.muteMicWhileSpeaking = muteMicWhileSpeaking ||
+            (audioMode == AudioMode.MEDIA && ModelConfig.MEDIA_MODE_FORCES_HALF_DUPLEX)
         this.autoStartMic = autoStartMic
         this.resumptionHandle = null
         _status.value = Status.CONNECTING
         _activeModel.value = null
 
         connectJob = scope.launch(Dispatchers.IO) {
-            var connected: GeminiLiveSession? = null
+            var connected: LiveSession? = null
             for ((index, model) in modelChain.withIndex()) {
                 if (!isSessionActive) return@launch
                 when (val result = connectOnce(model, null)) {
@@ -153,7 +159,7 @@ class LiveSessionManager(context: Context, private val scope: CoroutineScope) {
     }
 
     private sealed interface ConnectResult {
-        data class Success(val session: GeminiLiveSession) : ConnectResult
+        data class Success(val session: LiveSession) : ConnectResult
         data class Failed(val reason: String) : ConnectResult
         data class Fatal(val reason: String) : ConnectResult
     }
@@ -161,9 +167,19 @@ class LiveSessionManager(context: Context, private val scope: CoroutineScope) {
     /** Opens one websocket and waits for setupComplete (or a failure). */
     private suspend fun connectOnce(model: String, handle: String?): ConnectResult {
         val w = waifu ?: return ConnectResult.Fatal("no waifu")
-        val setup = SetupBuilder.setupMessage(model, w, systemPrompt, handle)
         val deferred = CompletableDeferred<ConnectResult>()
-        val s = GeminiLiveSession(httpClient, apiKey, model, setup, SessionListener(deferred))
+        val s: LiveSession = when (provider) {
+            Provider.GEMINI -> GeminiLiveSession(
+                httpClient, apiKey, model,
+                SetupBuilder.setupMessage(model, w, systemPrompt, handle),
+                SessionListener(deferred),
+            )
+            Provider.OPENAI -> OpenAiRealtimeSession(
+                httpClient, apiKey, model,
+                SetupBuilder.openAiSessionUpdate(w, systemPrompt),
+                SessionListener(deferred),
+            )
+        }
         s.open()
         val result = withTimeoutOrNull(AppConfig.SETUP_TIMEOUT_SECONDS * 1000) { deferred.await() }
         if (result == null) {
@@ -176,36 +192,36 @@ class LiveSessionManager(context: Context, private val scope: CoroutineScope) {
     /** Handles callbacks from one websocket; before setup they resolve [setupResult]. */
     private inner class SessionListener(
         private val setupResult: CompletableDeferred<ConnectResult>,
-    ) : GeminiLiveSession.Listener {
+    ) : LiveSession.Listener {
 
-        private fun isCurrent(s: GeminiLiveSession) = session === s
+        private fun isCurrent(s: LiveSession) = session === s
 
-        override fun onSetupComplete(session: GeminiLiveSession) {
+        override fun onSetupComplete(session: LiveSession) {
             setupResult.complete(ConnectResult.Success(session))
         }
 
-        override fun onAudio(session: GeminiLiveSession, pcm: ByteArray) {
+        override fun onAudio(session: LiveSession, pcm: ByteArray) {
             output?.enqueue(pcm)
         }
 
-        override fun onInputTranscript(session: GeminiLiveSession, text: String) {
+        override fun onInputTranscript(session: LiveSession, text: String) {
             _events.tryEmit(Event.UserTranscript(text))
         }
 
-        override fun onOutputTranscript(session: GeminiLiveSession, text: String) {
+        override fun onOutputTranscript(session: LiveSession, text: String) {
             _events.tryEmit(Event.AssistantTranscript(text))
         }
 
-        override fun onTurnComplete(session: GeminiLiveSession) {
+        override fun onTurnComplete(session: LiveSession) {
             _events.tryEmit(Event.TurnComplete)
         }
 
-        override fun onInterrupted(session: GeminiLiveSession) {
+        override fun onInterrupted(session: LiveSession) {
             output?.flush()
             _events.tryEmit(Event.Interrupted)
         }
 
-        override fun onGoAway(session: GeminiLiveSession, timeLeft: String) {
+        override fun onGoAway(session: LiveSession, timeLeft: String) {
             if (!isCurrent(session)) return
             val handle = resumptionHandle
             if (handle != null && !reconnecting) {
@@ -214,11 +230,11 @@ class LiveSessionManager(context: Context, private val scope: CoroutineScope) {
             }
         }
 
-        override fun onResumptionHandle(session: GeminiLiveSession, handle: String) {
+        override fun onResumptionHandle(session: LiveSession, handle: String) {
             if (isCurrent(session) || !setupResult.isCompleted) resumptionHandle = handle
         }
 
-        override fun onClosed(session: GeminiLiveSession, code: Int, reason: String) {
+        override fun onClosed(session: LiveSession, code: Int, reason: String) {
             if (!setupResult.isCompleted) {
                 setupResult.complete(classify(code, reason, null))
                 return
@@ -226,7 +242,7 @@ class LiveSessionManager(context: Context, private val scope: CoroutineScope) {
             if (isCurrent(session) && !reconnecting) finish(if (code == 1000) null else "$code $reason")
         }
 
-        override fun onFailure(session: GeminiLiveSession, error: Throwable, httpCode: Int?, body: String?) {
+        override fun onFailure(session: LiveSession, error: Throwable, httpCode: Int?, body: String?) {
             if (!setupResult.isCompleted) {
                 setupResult.complete(classify(httpCode ?: -1, error.message ?: "", body))
                 return
@@ -239,6 +255,7 @@ class LiveSessionManager(context: Context, private val scope: CoroutineScope) {
             val text = (reason + " " + (body ?: "")).lowercase()
             val keyProblem = text.contains("api key") || text.contains("api_key") ||
                 text.contains("permission_denied") || text.contains("unauthenticated") ||
+                text.contains("invalid_api_key") || text.contains("incorrect api key") ||
                 code == 401 || code == 403
             if (keyProblem) return ConnectResult.Fatal(reason.ifBlank { "invalid API key" })
             val network = text.contains("unable to resolve host") || text.contains("failed to connect") ||
@@ -289,7 +306,8 @@ class LiveSessionManager(context: Context, private val scope: CoroutineScope) {
         if (!isSessionActive) return
         if (enabled) {
             if (input?.isRunning == true) return
-            val mic = AudioInput(audioMode) { buf, len -> session?.sendAudio(buf, len) }
+            val rate = session?.inputSampleRate ?: ModelConfig.INPUT_SAMPLE_RATE
+            val mic = AudioInput(audioMode, rate) { buf, len -> session?.sendAudio(buf, len) }
             if (mic.start()) {
                 input = mic
                 _micOn.value = true
@@ -335,6 +353,7 @@ class LiveSessionManager(context: Context, private val scope: CoroutineScope) {
         tickerJob?.cancel()
         tickerJob = scope.launch(Dispatchers.Default) {
             var smoothed = 0f
+            var lastPlayingAt = 0L
             while (isSessionActive && isActive) {
                 val out = output
                 val level = out?.currentLevel() ?: 0f
@@ -352,7 +371,11 @@ class LiveSessionManager(context: Context, private val scope: CoroutineScope) {
                 if (_mouthFrame.value != frame) _mouthFrame.value = frame
                 val playing = out?.isPlaying() ?: false
                 if (_speaking.value != playing) _speaking.value = playing
-                input?.muted = muteMicWhileSpeaking && playing
+                val now = System.currentTimeMillis()
+                if (playing) lastPlayingAt = now
+                // Half duplex: stay muted a little after she stops so the echo tail is not heard as speech.
+                val muteNow = muteMicWhileSpeaking && (playing || now - lastPlayingAt < ModelConfig.MIC_UNMUTE_DELAY_MS)
+                input?.let { if (it.muted != muteNow) it.muted = muteNow }
                 delay(AppConfig.LIP_FRAME_INTERVAL_MS)
             }
         }

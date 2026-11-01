@@ -25,7 +25,7 @@ object AppConfig {
     const val DATABASE_FILE = "waifuverse.db"
 
     /** Bump when the SQL schema in AppDatabase changes. */
-    const val DATABASE_VERSION = 1
+    const val DATABASE_VERSION = 2
 
     // ---------------------------------------------------------------
     // Defaults for user settings (changeable later from the Settings page)

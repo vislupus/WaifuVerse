@@ -7,6 +7,8 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.vislupus.waifuverse.config.AppConfig
 import com.vislupus.waifuverse.config.CharactersConfig
+import com.vislupus.waifuverse.config.ModelConfig
+import com.vislupus.waifuverse.config.Provider
 import java.io.File
 
 /**
@@ -48,6 +50,8 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 name TEXT NOT NULL,
                 title TEXT NOT NULL,
                 voice TEXT NOT NULL,
+                provider TEXT NOT NULL DEFAULT 'gemini',
+                openai_voice TEXT NOT NULL DEFAULT 'marin',
                 background_id TEXT NOT NULL,
                 accent_hex TEXT NOT NULL,
                 persona TEXT NOT NULL,
@@ -85,6 +89,10 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         // Add ALTER TABLE migrations here when DATABASE_VERSION is bumped.
+        if (oldVersion < 2) {
+            db.execSQL("ALTER TABLE waifus ADD COLUMN provider TEXT NOT NULL DEFAULT 'gemini'")
+            db.execSQL("ALTER TABLE waifus ADD COLUMN openai_voice TEXT NOT NULL DEFAULT '${ModelConfig.OPENAI_DEFAULT_VOICE}'")
+        }
     }
 
     // ------------------------------------------------------------------
@@ -172,6 +180,8 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
         put("name", w.name)
         put("title", w.title)
         put("voice", w.voice)
+        put("provider", w.provider.id)
+        put("openai_voice", w.openAiVoice)
         put("background_id", w.backgroundId)
         put("accent_hex", w.accentHex)
         put("persona", w.persona)
@@ -188,6 +198,8 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
         name = c.getString(c.getColumnIndexOrThrow("name")),
         title = c.getString(c.getColumnIndexOrThrow("title")),
         voice = c.getString(c.getColumnIndexOrThrow("voice")),
+        provider = Provider.fromId(c.getString(c.getColumnIndexOrThrow("provider"))),
+        openAiVoice = c.getString(c.getColumnIndexOrThrow("openai_voice")),
         backgroundId = c.getString(c.getColumnIndexOrThrow("background_id")),
         accentHex = c.getString(c.getColumnIndexOrThrow("accent_hex")),
         persona = c.getString(c.getColumnIndexOrThrow("persona")),

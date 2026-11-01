@@ -33,6 +33,7 @@ import com.vislupus.waifuverse.MainViewModel
 import com.vislupus.waifuverse.config.AudioMode
 import com.vislupus.waifuverse.config.Language
 import com.vislupus.waifuverse.config.ModelConfig
+import com.vislupus.waifuverse.config.Provider
 import com.vislupus.waifuverse.config.ThemeConfig
 import com.vislupus.waifuverse.config.ThemeMode
 import com.vislupus.waifuverse.data.AppSettings
@@ -69,6 +70,7 @@ fun SettingsContent(
 ) {
     val texts = LocalTexts.current
     var showKey by remember { mutableStateOf(false) }
+    var showOpenAiKey by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     val dark = when (settings.themeMode) {
         ThemeMode.SYSTEM -> systemDark
@@ -179,7 +181,51 @@ fun SettingsContent(
             SettingRow(
                 icon = Lucide.SlidersHorizontal,
                 title = texts.fallbackModels,
-                subtitle = settings.modelChain().joinToString("  →  "),
+                subtitle = settings.modelChain(Provider.GEMINI).joinToString("  →  "),
+            )
+        }
+        SettingsCard(modifier = Modifier.padding(top = ThemeConfig.SPACE_S.dp)) {
+            Column(modifier = Modifier.padding(ThemeConfig.SPACE_M.dp)) {
+                OutlinedTextField(
+                    value = settings.openAiApiKey,
+                    onValueChange = { v -> onUpdate { it.copy(openAiApiKey = v.trim()) } },
+                    label = { Text(texts.openAiApiKey) },
+                    singleLine = true,
+                    visualTransformation = if (showOpenAiKey) VisualTransformation.None else PasswordVisualTransformation(),
+                    leadingIcon = { Icon(Lucide.Key, contentDescription = null, modifier = Modifier.size(20.dp)) },
+                    trailingIcon = {
+                        IconButton(onClick = { showOpenAiKey = !showOpenAiKey }) {
+                            Icon(if (showOpenAiKey) Lucide.EyeOff else Lucide.Eye, contentDescription = null, modifier = Modifier.size(20.dp))
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    texts.apiKeyHint + "\n" + texts.openAiApiKeyGetOne,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 6.dp, bottom = 14.dp),
+                )
+                OutlinedTextField(
+                    value = settings.openAiPrimaryModel,
+                    onValueChange = { v -> onUpdate { it.copy(openAiPrimaryModel = v.trim()) } },
+                    label = { Text(texts.openAiPrimaryModel) },
+                    placeholder = { Text(ModelConfig.OPENAI_MODEL_CHAIN.first()) },
+                    singleLine = true,
+                    leadingIcon = { Icon(Lucide.Cpu, contentDescription = null, modifier = Modifier.size(20.dp)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    texts.primaryModelHint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
+            SettingRow(
+                icon = Lucide.SlidersHorizontal,
+                title = texts.openAiFallbackModels,
+                subtitle = settings.modelChain(Provider.OPENAI).joinToString("  →  "),
             )
         }
 

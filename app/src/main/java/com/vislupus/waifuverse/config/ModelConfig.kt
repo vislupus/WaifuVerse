@@ -7,6 +7,13 @@ package com.vislupus.waifuverse.config
  */
 object ModelConfig {
 
+    /** Provider used by a waifu unless changed on the Persona page. */
+    val DEFAULT_PROVIDER = Provider.GEMINI
+
+    // ---------------------------------------------------------------
+    // Gemini Live
+    // ---------------------------------------------------------------
+
     /** Gemini Live websocket endpoint (v1beta BidiGenerateContent). */
     const val LIVE_ENDPOINT =
         "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
@@ -33,6 +40,43 @@ object ModelConfig {
         "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi",
         "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat",
     )
+
+    // ---------------------------------------------------------------
+    // OpenAI Realtime
+    // ---------------------------------------------------------------
+
+    /** OpenAI Realtime websocket endpoint; the model is appended as ?model=... */
+    const val OPENAI_REALTIME_ENDPOINT = "wss://api.openai.com/v1/realtime"
+
+    /** OpenAI models tried in this order (newest first). The first can be overridden from Settings. */
+    val OPENAI_MODEL_CHAIN: List<String> = listOf(
+        "gpt-realtime-1.5",
+        "gpt-realtime",
+        "gpt-realtime-mini",
+        "gpt-4o-realtime-preview",
+    )
+
+    /** OpenAI Realtime voices selectable per waifu. */
+    val OPENAI_VOICES: List<String> = listOf(
+        "marin", "cedar", "alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse",
+    )
+
+    /** Default OpenAI voice for waifus that do not set one. */
+    const val OPENAI_DEFAULT_VOICE = "marin"
+
+    /** Model used by OpenAI to transcribe what you say (shown in the chat). */
+    const val OPENAI_TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe"
+
+    /** OpenAI Realtime only accepts 24 kHz PCM16 in and out. */
+    const val OPENAI_SAMPLE_RATE = 24_000
+
+    /** Server voice-activity detection settings for OpenAI (silence before a turn ends, ms). */
+    const val OPENAI_VAD_SILENCE_MS = 500
+    const val OPENAI_VAD_THRESHOLD = 0.5f
+
+    // ---------------------------------------------------------------
+    // Generation parameters (Gemini; OpenAI Realtime manages these itself)
+    // ---------------------------------------------------------------
 
     // Default generation parameters (each waifu can override them on the Persona page).
     const val DEFAULT_TEMPERATURE = 1.0f
@@ -76,7 +120,7 @@ object ModelConfig {
     // Audio
     // ---------------------------------------------------------------
 
-    /** Gemini Live expects 16 kHz PCM16 mono in and produces 24 kHz PCM16 mono out. */
+    /** Gemini Live expects 16 kHz PCM16 mono in; both providers produce 24 kHz PCM16 mono out. */
     const val INPUT_SAMPLE_RATE = 16_000
     const val OUTPUT_SAMPLE_RATE = 24_000
 
@@ -95,6 +139,16 @@ object ModelConfig {
     /** Default for "mute microphone while the waifu is speaking" (prevents echo in MEDIA mode). */
     const val DEFAULT_MUTE_MIC_WHILE_SPEAKING = false
 
+    /**
+     * MEDIA mode has no hardware echo cancellation, so the microphone would hear
+     * the waifu and she would interrupt herself after a word. When true the mic
+     * is always muted while she speaks in MEDIA mode, whatever the setting says.
+     */
+    const val MEDIA_MODE_FORCES_HALF_DUPLEX = true
+
+    /** Keep the mic muted this long after her voice stops (lets the room echo die out), ms. */
+    const val MIC_UNMUTE_DELAY_MS = 400L
+
     /** Attach the platform noise suppressor / AGC / echo canceller effects when available. */
     const val USE_NOISE_SUPPRESSOR = true
     const val USE_AUTOMATIC_GAIN_CONTROL = true
@@ -102,6 +156,15 @@ object ModelConfig {
 
     /** Route playback to the loudspeaker (false = earpiece in VOICE_CALL mode). */
     const val USE_SPEAKERPHONE = true
+}
+
+/** AI providers a waifu can talk through. */
+enum class Provider(val id: String, val displayName: String) {
+    GEMINI("gemini", "Gemini"), OPENAI("openai", "OpenAI");
+
+    companion object {
+        fun fromId(id: String?): Provider = entries.firstOrNull { it.id == id } ?: ModelConfig.DEFAULT_PROVIDER
+    }
 }
 
 /**

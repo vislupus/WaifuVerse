@@ -47,6 +47,33 @@ object SetupBuilder {
         return kept.asReversed().joinToString("\n")
     }
 
+    /** OpenAI Realtime "session.update" event (the model is part of the websocket URL). */
+    fun openAiSessionUpdate(waifu: Waifu, systemPrompt: String): JSONObject {
+        val pcm = JSONObject().put("type", "audio/pcm").put("rate", ModelConfig.OPENAI_SAMPLE_RATE)
+        val turnDetection = JSONObject()
+            .put("type", "server_vad")
+            .put("threshold", ModelConfig.OPENAI_VAD_THRESHOLD.toDouble())
+            .put("silence_duration_ms", ModelConfig.OPENAI_VAD_SILENCE_MS)
+            .put("create_response", true)
+            .put("interrupt_response", true)
+        val input = JSONObject()
+            .put("format", pcm)
+            .put("turn_detection", turnDetection)
+        if (ModelConfig.INPUT_TRANSCRIPTION) {
+            input.put("transcription", JSONObject().put("model", ModelConfig.OPENAI_TRANSCRIPTION_MODEL))
+        }
+        val output = JSONObject()
+            .put("format", JSONObject().put("type", "audio/pcm").put("rate", ModelConfig.OPENAI_SAMPLE_RATE))
+            .put("voice", waifu.openAiVoice)
+        val session = JSONObject()
+            .put("type", "realtime")
+            .put("instructions", systemPrompt)
+            .put("output_modalities", JSONArray().put("audio"))
+            .put("audio", JSONObject().put("input", input).put("output", output))
+        return JSONObject().put("type", "session.update").put("session", session)
+    }
+
+    /** Gemini Live "setup" message. */
     fun setupMessage(
         model: String,
         waifu: Waifu,

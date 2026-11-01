@@ -5,6 +5,7 @@ import com.vislupus.waifuverse.config.AudioMode
 import com.vislupus.waifuverse.config.CharactersConfig
 import com.vislupus.waifuverse.config.Language
 import com.vislupus.waifuverse.config.ModelConfig
+import com.vislupus.waifuverse.config.Provider
 import com.vislupus.waifuverse.config.ThemeMode
 import com.vislupus.waifuverse.config.WaifuDefaults
 
@@ -13,7 +14,10 @@ data class Waifu(
     val id: String,
     val name: String,
     val title: String,
+    /** Gemini voice. */
     val voice: String,
+    val provider: Provider,
+    val openAiVoice: String,
     val backgroundId: String,
     val accentHex: String,
     val persona: String,
@@ -40,6 +44,8 @@ data class Waifu(
             name = d.name,
             title = d.title,
             voice = d.voice,
+            provider = d.provider,
+            openAiVoice = d.openAiVoice,
             backgroundId = d.backgroundId,
             accentHex = d.accentHex,
             persona = d.persona,
@@ -89,6 +95,8 @@ data class AppSettings(
     val language: Language = AppConfig.DEFAULT_LANGUAGE,
     val apiKey: String = "",
     val primaryModel: String = "",
+    val openAiApiKey: String = "",
+    val openAiPrimaryModel: String = "",
     val audioMode: AudioMode = ModelConfig.DEFAULT_AUDIO_MODE,
     val muteMicWhileSpeaking: Boolean = ModelConfig.DEFAULT_MUTE_MIC_WHILE_SPEAKING,
     val autoStartMic: Boolean = AppConfig.AUTO_START_MIC_ON_CONNECT,
@@ -96,11 +104,22 @@ data class AppSettings(
     val lastWaifuId: String = AppConfig.DEFAULT_WAIFU_ID,
     val lastConversationId: Long = 0L,
 ) {
-    /** Models in the order they are tried. */
-    fun modelChain(): List<String> {
-        val primary = primaryModel.trim()
-        val chain = ModelConfig.MODEL_CHAIN
+    /** Models of a provider in the order they are tried. */
+    fun modelChain(provider: Provider): List<String> {
+        val primary = when (provider) {
+            Provider.GEMINI -> primaryModel
+            Provider.OPENAI -> openAiPrimaryModel
+        }.trim()
+        val chain = when (provider) {
+            Provider.GEMINI -> ModelConfig.MODEL_CHAIN
+            Provider.OPENAI -> ModelConfig.OPENAI_MODEL_CHAIN
+        }
         return if (primary.isEmpty()) chain else listOf(primary) + chain.filter { it != primary }
+    }
+
+    fun apiKey(provider: Provider): String = when (provider) {
+        Provider.GEMINI -> apiKey
+        Provider.OPENAI -> openAiApiKey
     }
 
     companion object {
@@ -110,6 +129,8 @@ data class AppSettings(
         const val KEY_LANGUAGE = "language"
         const val KEY_API_KEY = "api_key"
         const val KEY_PRIMARY_MODEL = "primary_model"
+        const val KEY_OPENAI_API_KEY = "openai_api_key"
+        const val KEY_OPENAI_PRIMARY_MODEL = "openai_primary_model"
         const val KEY_AUDIO_MODE = "audio_mode"
         const val KEY_MUTE_MIC = "mute_mic_while_speaking"
         const val KEY_AUTO_START_MIC = "auto_start_mic"
@@ -126,6 +147,8 @@ data class AppSettings(
                 language = Language.fromId(m[KEY_LANGUAGE]),
                 apiKey = m[KEY_API_KEY] ?: "",
                 primaryModel = m[KEY_PRIMARY_MODEL] ?: "",
+                openAiApiKey = m[KEY_OPENAI_API_KEY] ?: "",
+                openAiPrimaryModel = m[KEY_OPENAI_PRIMARY_MODEL] ?: "",
                 audioMode = AudioMode.fromId(m[KEY_AUDIO_MODE]),
                 muteMicWhileSpeaking = m[KEY_MUTE_MIC]?.toBooleanStrictOrNull() ?: d.muteMicWhileSpeaking,
                 autoStartMic = m[KEY_AUTO_START_MIC]?.toBooleanStrictOrNull() ?: d.autoStartMic,
@@ -143,6 +166,8 @@ data class AppSettings(
         KEY_LANGUAGE to language.id,
         KEY_API_KEY to apiKey,
         KEY_PRIMARY_MODEL to primaryModel,
+        KEY_OPENAI_API_KEY to openAiApiKey,
+        KEY_OPENAI_PRIMARY_MODEL to openAiPrimaryModel,
         KEY_AUDIO_MODE to audioMode.id,
         KEY_MUTE_MIC to muteMicWhileSpeaking.toString(),
         KEY_AUTO_START_MIC to autoStartMic.toString(),

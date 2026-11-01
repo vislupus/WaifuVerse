@@ -43,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vislupus.waifuverse.MainViewModel
 import com.vislupus.waifuverse.config.CharactersConfig
 import com.vislupus.waifuverse.config.ModelConfig
+import com.vislupus.waifuverse.config.Provider
 import com.vislupus.waifuverse.config.ThemeConfig
 import com.vislupus.waifuverse.data.Waifu
 import com.vislupus.waifuverse.ui.components.ChoiceChips
@@ -144,10 +145,17 @@ private fun PersonaEditor(waifu: Waifu, onSave: (Waifu) -> Unit, onReset: (Strin
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+            SettingRow(icon = Lucide.Cpu, title = texts.fieldProvider, subtitle = texts.fieldProviderHint)
+            ChoiceChips(
+                options = Provider.entries,
+                selected = draft.provider,
+                label = { it.displayName },
+                onSelect = { draft = draft.copy(provider = it) },
+            )
             SettingRow(
                 icon = Lucide.AudioLines,
                 title = texts.fieldVoice,
-                subtitle = draft.voice,
+                subtitle = if (draft.provider == Provider.OPENAI) draft.openAiVoice else draft.voice,
                 onClick = { showVoices = true },
             ) { Icon(Lucide.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
             SettingRow(icon = Lucide.Image, title = texts.fieldBackground, subtitle = CharactersConfig.background(draft.backgroundId).name)
@@ -202,6 +210,12 @@ private fun PersonaEditor(waifu: Waifu, onSave: (Waifu) -> Unit, onReset: (Strin
         SectionHeader(texts.modelParameters)
         SettingsCard {
             Column(modifier = Modifier.padding(ThemeConfig.SPACE_M.dp)) {
+                Text(
+                    texts.modelParametersHint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 10.dp),
+                )
                 ParamSlider(
                     label = texts.temperature,
                     value = draft.temperature,
@@ -274,20 +288,23 @@ private fun PersonaEditor(waifu: Waifu, onSave: (Waifu) -> Unit, onReset: (Strin
             onDismissRequest = { showVoices = false },
             title = { Text(texts.fieldVoice) },
             text = {
+                val isOpenAi = draft.provider == Provider.OPENAI
+                val voices = if (isOpenAi) ModelConfig.OPENAI_VOICES else ModelConfig.VOICES
+                val current = if (isOpenAi) draft.openAiVoice else draft.voice
                 LazyColumn(modifier = Modifier.height(360.dp)) {
-                    items(ModelConfig.VOICES) { v ->
+                    items(voices) { v ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    draft = draft.copy(voice = v)
+                                    draft = if (isOpenAi) draft.copy(openAiVoice = v) else draft.copy(voice = v)
                                     showVoices = false
                                 }
                                 .padding(vertical = 10.dp, horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(v, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                            if (v == draft.voice) Icon(Lucide.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            if (v == current) Icon(Lucide.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }

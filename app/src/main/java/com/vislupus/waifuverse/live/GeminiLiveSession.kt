@@ -22,40 +22,28 @@ import java.util.concurrent.atomic.AtomicBoolean
 class GeminiLiveSession(
     private val httpClient: OkHttpClient,
     private val apiKey: String,
-    val model: String,
+    override val model: String,
     private val setupMessage: JSONObject,
-    private val listener: Listener,
-) {
-    /** Callbacks are invoked on OkHttp's websocket reader thread. */
-    interface Listener {
-        fun onSetupComplete(session: GeminiLiveSession)
-        fun onAudio(session: GeminiLiveSession, pcm: ByteArray)
-        fun onInputTranscript(session: GeminiLiveSession, text: String)
-        fun onOutputTranscript(session: GeminiLiveSession, text: String)
-        fun onTurnComplete(session: GeminiLiveSession)
-        fun onInterrupted(session: GeminiLiveSession)
-        fun onGoAway(session: GeminiLiveSession, timeLeft: String)
-        fun onResumptionHandle(session: GeminiLiveSession, handle: String)
-        fun onClosed(session: GeminiLiveSession, code: Int, reason: String)
-        fun onFailure(session: GeminiLiveSession, error: Throwable, httpCode: Int?, body: String?)
-    }
+    private val listener: LiveSession.Listener,
+) : LiveSession {
 
     private var webSocket: WebSocket? = null
     private val closed = AtomicBoolean(false)
 
     @Volatile
-    var setupDone: Boolean = false
+    override var setupDone: Boolean = false
         private set
 
-    fun open() {
+    override val inputSampleRate: Int = ModelConfig.INPUT_SAMPLE_RATE
+
+    override fun open() {
         val request = Request.Builder()
             .url("${ModelConfig.LIVE_ENDPOINT}?key=$apiKey")
             .build()
         webSocket = httpClient.newWebSocket(request, socketListener)
     }
 
-    /** Sends raw PCM16 mono audio recorded at [ModelConfig.INPUT_SAMPLE_RATE]. */
-    fun sendAudio(pcm: ByteArray, length: Int = pcm.size) {
+    override fun sendAudio(pcm: ByteArray, length: Int) {
         val ws = webSocket ?: return
         if (!setupDone) return
         val data = Base64.encodeToString(pcm, 0, length, Base64.NO_WRAP)
@@ -66,15 +54,13 @@ class GeminiLiveSession(
         ws.send(msg.toString())
     }
 
-    /** Tells Gemini the microphone stream stopped (flushes its VAD). */
-    fun sendAudioStreamEnd() {
+    override fun sendAudioStreamEnd() {
         val ws = webSocket ?: return
         if (!setupDone) return
         ws.send(JSONObject().put("realtimeInput", JSONObject().put("audioStreamEnd", true)).toString())
     }
 
-    /** Sends a typed user message as a complete turn. */
-    fun sendText(text: String) {
+    override fun sendText(text: String) {
         val ws = webSocket ?: return
         val turn = JSONObject()
             .put("role", "user")
@@ -85,7 +71,7 @@ class GeminiLiveSession(
         ws.send(JSONObject().put("clientContent", content).toString())
     }
 
-    fun close() {
+    override fun close() {
         if (closed.compareAndSet(false, true)) {
             try {
                 webSocket?.close(1000, "bye")
