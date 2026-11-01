@@ -461,7 +461,7 @@ private fun NoticeRow(line: ChatLine, onOpenSettings: () -> Unit) {
         NoticeKind.MODEL_FALLBACK -> texts.modelFallback.fill(line.noticeArgs)
         NoticeKind.SESSION_ENDED -> texts.sessionEnded
         NoticeKind.SESSION_ERROR -> texts.sessionError.fill(line.noticeArgs)
-        NoticeKind.ALL_MODELS_FAILED -> texts.allModelsFailed
+        NoticeKind.ALL_MODELS_FAILED -> texts.allModelsFailed.fill(line.noticeArgs)
         NoticeKind.API_KEY_MISSING -> texts.apiKeyMissing.fill(line.noticeArgs)
         NoticeKind.MIC_DENIED -> texts.micPermissionDenied
     }

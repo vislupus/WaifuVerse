@@ -295,11 +295,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             LiveSessionManager.Event.Interrupted -> finalizeAssistant(interrupted = true)
             is LiveSessionManager.Event.Connected -> addNotice(NoticeKind.CONNECTED, mapOf("model" to e.model))
             is LiveSessionManager.Event.ModelFallback ->
-                addNotice(NoticeKind.MODEL_FALLBACK, mapOf("from" to e.from, "to" to e.to))
+                addNotice(NoticeKind.MODEL_FALLBACK, mapOf("from" to e.from, "to" to e.to, "reason" to e.reason))
             is LiveSessionManager.Event.Ended -> {
                 finalizePending(interrupted = false)
                 when {
-                    e.allModelsFailed -> addNotice(NoticeKind.ALL_MODELS_FAILED)
+                    e.allModelsFailed -> addNotice(NoticeKind.ALL_MODELS_FAILED, mapOf("error" to (e.error ?: "")))
                     e.error != null -> addNotice(NoticeKind.SESSION_ERROR, mapOf("error" to e.error))
                     else -> addNotice(NoticeKind.SESSION_ENDED)
                 }

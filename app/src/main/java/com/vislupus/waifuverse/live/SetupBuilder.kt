@@ -73,6 +73,25 @@ object SetupBuilder {
         return JSONObject().put("type", "session.update").put("session", session)
     }
 
+    /** Older (beta) OpenAI Realtime "session.update" shape, used only if the current one is rejected. */
+    fun openAiLegacySessionUpdate(waifu: Waifu, systemPrompt: String): JSONObject {
+        val turnDetection = JSONObject()
+            .put("type", "server_vad")
+            .put("threshold", ModelConfig.OPENAI_VAD_THRESHOLD.toDouble())
+            .put("silence_duration_ms", ModelConfig.OPENAI_VAD_SILENCE_MS)
+        val session = JSONObject()
+            .put("instructions", systemPrompt)
+            .put("modalities", JSONArray().put("audio").put("text"))
+            .put("voice", waifu.openAiVoice)
+            .put("input_audio_format", "pcm16")
+            .put("output_audio_format", "pcm16")
+            .put("turn_detection", turnDetection)
+        if (ModelConfig.INPUT_TRANSCRIPTION) {
+            session.put("input_audio_transcription", JSONObject().put("model", ModelConfig.OPENAI_TRANSCRIPTION_MODEL))
+        }
+        return JSONObject().put("type", "session.update").put("session", session)
+    }
+
     /** Gemini Live "setup" message. */
     fun setupMessage(
         model: String,
