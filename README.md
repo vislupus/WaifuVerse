@@ -10,6 +10,20 @@ database.
 Target device: Xiaomi Redmi Note 8 Pro (1080 × 2340, 19.5:9), portrait only.
 Minimum Android 8.0 (API 26), target API 35. Package: `com.vislupus.waifuverse`.
 
+## Download
+
+Ready-to-install APKs are on the
+[Releases page](https://github.com/vislupus/WaifuVerse/releases) —
+download `WaifuVerse-<version>.apk`, open it on the phone and allow
+installation from this source. Then add your Gemini and/or OpenAI API key in
+*Settings*.
+
+## Screenshots
+
+| Chat | Persona | History | Settings |
+|------|---------|---------|----------|
+| ![Chat](docs/screenshots/chat.jpg) | ![Persona](docs/screenshots/persona.jpg) | ![History](docs/screenshots/history.jpg) | ![Settings](docs/screenshots/settings.jpg) |
+
 ---
 
 ## Quick start
@@ -28,8 +42,8 @@ Minimum Android 8.0 (API 26), target API 35. Package: `com.vislupus.waifuverse`.
 |----------------|-------------------------------------------------------------------|
 | `make dev`     | build + install on the connected phone + launch + live logs       |
 | `make run`     | build + install + launch                                          |
-| `make build`   | compile a debug APK → `app/build/outputs/apk/debug/app-debug.apk` |
-| `make release` | compile a release APK (signed with the debug key so it installs)  |
+| `make build`   | compile a debug APK → `app/build/outputs/apk/debug/WaifuVerse-<version>-debug.apk` |
+| `make release` | compile a release APK → `app/build/outputs/apk/release/WaifuVerse-<version>.apk` |
 | `make watch`   | rebuild + reinstall + relaunch automatically on every file change |
 | `make logs`    | show the app's log output                                         |
 | `make preview` | open the project in Android Studio for Compose previews           |
@@ -39,6 +53,19 @@ Minimum Android 8.0 (API 26), target API 35. Package: `com.vislupus.waifuverse`.
 The same scripts exist as `scripts/*.sh` (macOS/Linux/Git Bash) and
 `scripts/*.ps1` (Windows PowerShell), e.g. `./scripts/dev.sh` or
 `.\scripts\dev.ps1`. Plain Gradle works too: `./gradlew installDebug`.
+
+### Publishing a release
+
+Bump `versionCode` / `versionName` in `app/build.gradle.kts`, then push a tag:
+
+```
+git tag v1.0.1
+git push origin v1.0.1
+```
+
+The *Release APK* GitHub Actions workflow (`.github/workflows/release.yml`)
+builds `WaifuVerse-<version>.apk` and attaches it to the release
+automatically.
 
 ### Hot reload / previews
 

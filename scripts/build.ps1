@@ -2,5 +2,5 @@
 param([string]$Variant = "debug")
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
-if ($Variant -eq "release") { .\gradlew.bat assembleRelease; Write-Host "APK: app\build\outputs\apk\release\app-release.apk" }
-else { .\gradlew.bat assembleDebug; Write-Host "APK: app\build\outputs\apk\debug\app-debug.apk" }
+if ($Variant -eq "release") { .\gradlew.bat assembleRelease; Get-ChildItem app\build\outputs\apk\release\*.apk | ForEach-Object { Write-Host "APK: $($_.FullName)" } }
+else { .\gradlew.bat assembleDebug; Get-ChildItem app\build\outputs\apk\debug\*.apk | ForEach-Object { Write-Host "APK: $($_.FullName)" } }

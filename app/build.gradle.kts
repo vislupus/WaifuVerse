@@ -41,6 +41,16 @@ android {
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
+
+    // Name the APKs WaifuVerse-<version>.apk (release) and WaifuVerse-<version>-debug.apk.
+    applicationVariants.all {
+        val variant = this
+        outputs.all {
+            val output = this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl ?: return@all
+            val suffix = if (variant.buildType.name == "release") "" else "-${variant.buildType.name}"
+            output.outputFileName = "WaifuVerse-${variant.versionName}$suffix.apk"
+        }
+    }
 }
 
 dependencies {
