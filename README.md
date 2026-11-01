@@ -12,11 +12,12 @@ Minimum Android 8.0 (API 26), target API 35. Package: `com.vislupus.waifuverse`.
 
 ## Download
 
-Ready-to-install APKs are on the
-[Releases page](https://github.com/vislupus/WaifuVerse/releases) —
-download `WaifuVerse-<version>.apk`, open it on the phone and allow
-installation from this source. Then add your Gemini and/or OpenAI API key in
-*Settings*.
+Ready-to-install APK:
+**[WaifuVerse-1.0.0.apk](https://github.com/vislupus/WaifuVerse/raw/claude/charming-feynman-huabpw/releases/WaifuVerse-1.0.0.apk)**
+(also in the `releases/` folder and on the
+[Releases page](https://github.com/vislupus/WaifuVerse/releases) once published).
+Open it on the phone, allow installation from this source, then add your
+Gemini and/or OpenAI API key in *Settings*.
 
 ## Screenshots
 

@@ -13,3 +13,5 @@
 /app/release/
 /app/debug/
 .kotlin/
+*.apk
+!releases/*.apk
