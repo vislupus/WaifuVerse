@@ -64,8 +64,13 @@ git push origin v1.0.1
 ```
 
 The *Release APK* GitHub Actions workflow (`.github/workflows/release.yml`)
-builds `WaifuVerse-<version>.apk` and attaches it to the release
-automatically.
+builds `WaifuVerse-<version>.apk`. It attaches the APK to the release only
+when a signing keystore is stored in the repository secrets
+(`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`), so
+that every release is signed with the same key and installs over the
+previous version. Without the secrets, upload the APK built on your machine
+(`make release`) to the release by hand. Locally you can sign with your own
+key by setting the `WAIFUVERSE_KEYSTORE*` environment variables.
 
 ### Hot reload / previews
 
