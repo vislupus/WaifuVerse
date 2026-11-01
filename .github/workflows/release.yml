@@ -1,0 +1,62 @@
+# Builds the release APK whenever a tag like v1.0.0 is pushed (or manually).
+#
+# The APK is attached to the GitHub Release only when a signing keystore is
+# configured in the repository secrets, so that every release is signed with
+# the SAME key and can be installed over the previous version:
+#   KEYSTORE_BASE64   - the .jks/.keystore file encoded with `base64 -w0 my.jks`
+#   KEYSTORE_PASSWORD - keystore password
+#   KEY_ALIAS         - key alias
+#   KEY_PASSWORD      - key password
+# Without the secrets the APK is only kept as a workflow artifact.
+name: Release APK
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Restore signing keystore
+        if: env.HAS_KEYSTORE == 'true'
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"
+
+      - name: Build release APK
+        env:
+          WAIFUVERSE_KEYSTORE: ${{ env.HAS_KEYSTORE == 'true' && format('{0}/release.jks', runner.temp) || '' }}
+          WAIFUVERSE_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          WAIFUVERSE_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          WAIFUVERSE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WaifuVerse-apk
+          path: app/build/outputs/apk/release/*.apk
+
+      - name: Attach APK to the GitHub Release
+        if: startsWith(github.ref, 'refs/tags/') && env.HAS_KEYSTORE == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/release/*.apk
+          generate_release_notes: true

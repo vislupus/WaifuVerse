@@ -18,12 +18,23 @@ android {
         versionName = "1.0.0"
     }
 
+    // Release signing: uses a keystore from environment variables when present
+    // (CI / your own key), otherwise the debug keystore so `make release` just works.
+    val keystorePath = System.getenv("WAIFUVERSE_KEYSTORE").orEmpty()
+    if (keystorePath.isNotEmpty()) {
+        signingConfigs.create("release") {
+            storeFile = file(keystorePath)
+            storePassword = System.getenv("WAIFUVERSE_KEYSTORE_PASSWORD").orEmpty()
+            keyAlias = System.getenv("WAIFUVERSE_KEY_ALIAS").orEmpty()
+            keyPassword = System.getenv("WAIFUVERSE_KEY_PASSWORD").orEmpty()
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Debug keystore keeps `make release` installable on your own phone without extra setup.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (keystorePath.isNotEmpty()) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
     }
 
@@ -40,6 +51,16 @@ android {
     }
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+    }
+
+    // Name the APKs WaifuVerse-<version>.apk (release) and WaifuVerse-<version>-debug.apk.
+    applicationVariants.all {
+        val variant = this
+        outputs.all {
+            val output = this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl ?: return@all
+            val suffix = if (variant.buildType.name == "release") "" else "-${variant.buildType.name}"
+            output.outputFileName = "WaifuVerse-${variant.versionName}$suffix.apk"
+        }
     }
 }
 
