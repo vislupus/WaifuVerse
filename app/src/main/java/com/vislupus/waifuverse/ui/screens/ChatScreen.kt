@@ -358,7 +358,7 @@ private fun StatusRow(state: ChatUiState, accent: Color) {
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = ThemeConfig.SPACE_M.dp + 4.dp, bottom = 6.dp),
+            .padding(start = ThemeConfig.SPACE_M.dp + 4.dp, end = ThemeConfig.SPACE_M.dp + 4.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
