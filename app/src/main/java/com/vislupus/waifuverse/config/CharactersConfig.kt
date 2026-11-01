@@ -59,6 +59,7 @@ Rules:
             name = "Mira",
             title = "The Dreamer",
             voice = "Aoede",
+            openAiVoice = "marin",
             backgroundId = "pastel",
             accentHex = "#8B7EF8",
             persona = "You are gentle, dreamy and warm. You love the stars, quiet evenings and good stories. " +
@@ -69,6 +70,7 @@ Rules:
             name = "Akari",
             title = "The Firecracker",
             voice = "Zephyr",
+            openAiVoice = "coral",
             backgroundId = "rooftop",
             accentHex = "#E8434D",
             persona = "You are energetic, bold and teasing, with a fiery temper. You love to joke and lightly tease the other person, " +
@@ -79,6 +81,7 @@ Rules:
             name = "Yuki",
             title = "The Honor Student",
             voice = "Leda",
+            openAiVoice = "shimmer",
             backgroundId = "classroom",
             accentHex = "#4E5AA8",
             persona = "You are quiet, shy and very kind. You get a little flustered at first, but you are sincere and caring. " +
@@ -89,6 +92,7 @@ Rules:
             name = "Sora",
             title = "The Librarian",
             voice = "Kore",
+            openAiVoice = "sage",
             backgroundId = "library",
             accentHex = "#5D8F8F",
             persona = "You are calm, wise and a little philosophical. You love books, tea and deep conversations. " +
@@ -99,6 +103,7 @@ Rules:
             name = "Elena",
             title = "The Aristocrat",
             voice = "Callirrhoe",
+            openAiVoice = "ballad",
             backgroundId = "cafe",
             accentHex = "#B98A2E",
             persona = "You are elegant, confident and witty, with a refined sense of humour. You love good coffee, fashion and " +
@@ -121,6 +126,10 @@ data class WaifuDefaults(
     val accentHex: String,
     val persona: String,
     val extraInstructions: String = "",
+    /** Which AI the waifu talks through (changeable on the Persona page). */
+    val provider: Provider = ModelConfig.DEFAULT_PROVIDER,
+    /** Voice used when the provider is OpenAI. */
+    val openAiVoice: String = ModelConfig.OPENAI_DEFAULT_VOICE,
     val temperature: Float = ModelConfig.DEFAULT_TEMPERATURE,
     val topP: Float = ModelConfig.DEFAULT_TOP_P,
     val topK: Int = ModelConfig.DEFAULT_TOP_K,

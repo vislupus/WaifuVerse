@@ -6,6 +6,11 @@ import android.content.pm.PackageManager
 import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,7 +23,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -218,6 +222,7 @@ fun ChatContent(state: ChatUiState, actions: ChatActions) {
         )
 
         Composer(state, actions, accent)
+        StatusRow(state, accent)
     }
 }
 
@@ -225,51 +230,69 @@ fun ChatContent(state: ChatUiState, actions: ChatActions) {
 private fun StageOverlay(state: ChatUiState, actions: ChatActions, accent: Color) {
     val texts = LocalTexts.current
     val waifu = state.selectedWaifu
+    var menuOpen by remember { mutableStateOf(false) }
     var backgroundMenu by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-        // Top-left: name, title and connection state.
+        // Top-left: just the name and title.
         Column(modifier = Modifier.align(Alignment.TopStart).padding(ThemeConfig.SPACE_M.dp)) {
-            Text(
-                waifu?.name ?: "",
-                style = MaterialTheme.typography.headlineSmall,
-                color = Color.White,
-            )
-            Text(
-                waifu?.title ?: "",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.8f),
-            )
-            Spacer(Modifier.height(ThemeConfig.SPACE_S.dp))
-            StatusPill(state, accent)
+            Text(waifu?.name ?: "", style = MaterialTheme.typography.headlineSmall, color = Color.White)
+            Text(waifu?.title ?: "", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.8f))
         }
 
-        // Top-right: memory toggle, background, new conversation.
-        Row(modifier = Modifier.align(Alignment.TopEnd).padding(ThemeConfig.SPACE_S.dp)) {
+        // Top-right: one menu button; the actions unfold under it with generous spacing.
+        Column(
+            modifier = Modifier.align(Alignment.TopEnd).padding(ThemeConfig.SPACE_S.dp),
+            horizontalAlignment = Alignment.End,
+        ) {
             StageIconButton(
-                icon = if (state.remembered) Lucide.BookmarkCheck else Lucide.Bookmark,
-                description = if (state.remembered) texts.rememberConversation else texts.temporaryConversation,
-                active = state.remembered,
+                icon = if (menuOpen) Lucide.X else Lucide.EllipsisVertical,
+                description = texts.stageMenu,
+                active = menuOpen,
                 accent = accent,
-            ) { actions.setRemembered(!state.remembered) }
-            Box {
-                StageIconButton(Lucide.Image, texts.chooseBackground, false, accent) { backgroundMenu = true }
-                DropdownMenu(expanded = backgroundMenu, onDismissRequest = { backgroundMenu = false }) {
-                    CharactersConfig.backgrounds.forEach { bg ->
-                        DropdownMenuItem(
-                            text = { Text(bg.name) },
-                            leadingIcon = {
-                                if (bg.id == state.backgroundId) Icon(Lucide.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                            },
-                            onClick = {
-                                backgroundMenu = false
-                                actions.setBackground(bg.id)
-                            },
-                        )
+            ) { menuOpen = !menuOpen }
+            AnimatedVisibility(
+                visible = menuOpen,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(ThemeConfig.STAGE_MENU_SPACING.dp),
+                    modifier = Modifier.padding(top = ThemeConfig.STAGE_MENU_SPACING.dp),
+                ) {
+                    StageMenuAction(
+                        icon = if (state.remembered) Lucide.BookmarkCheck else Lucide.Bookmark,
+                        label = if (state.remembered) texts.rememberedShort else texts.temporaryShort,
+                        active = state.remembered,
+                        accent = accent,
+                    ) { actions.setRemembered(!state.remembered) }
+                    Box {
+                        StageMenuAction(Lucide.Image, texts.chooseBackground, false, accent) { backgroundMenu = true }
+                        DropdownMenu(expanded = backgroundMenu, onDismissRequest = { backgroundMenu = false }) {
+                            CharactersConfig.backgrounds.forEach { bg ->
+                                DropdownMenuItem(
+                                    text = { Text(bg.name) },
+                                    leadingIcon = {
+                                        if (bg.id == state.backgroundId) {
+                                            Icon(Lucide.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        }
+                                    },
+                                    onClick = {
+                                        backgroundMenu = false
+                                        menuOpen = false
+                                        actions.setBackground(bg.id)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    StageMenuAction(Lucide.Plus, texts.newConversation, false, accent) {
+                        menuOpen = false
+                        actions.newConversation()
                     }
                 }
             }
-            StageIconButton(Lucide.Plus, texts.newConversation, false, accent) { actions.newConversation() }
         }
 
         // Bottom: companion picker.
@@ -282,6 +305,25 @@ private fun StageOverlay(state: ChatUiState, actions: ChatActions, accent: Color
                 .align(Alignment.BottomStart)
                 .padding(bottom = ThemeConfig.SPACE_S.dp),
         )
+    }
+}
+
+/** A menu action: label pill on the left, round icon button on the right. */
+@Composable
+private fun StageMenuAction(icon: ImageVector, label: String, active: Boolean, accent: Color, onClick: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = Color.White,
+            modifier = Modifier
+                .clip(RoundedCornerShape(999.dp))
+                .background(Color.Black.copy(alpha = 0.45f))
+                .clickable(onClick = onClick)
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+        )
+        Spacer(Modifier.width(ThemeConfig.SPACE_S.dp))
+        StageIconButton(icon, label, active, accent, onClick)
     }
 }
 
@@ -299,32 +341,40 @@ private fun StageIconButton(icon: ImageVector, description: String, active: Bool
     }
 }
 
+/** Connection state shown under the message box: icon + "Live · model" / "Offline". */
 @Composable
-private fun StatusPill(state: ChatUiState, accent: Color) {
+private fun StatusRow(state: ChatUiState, accent: Color) {
     val texts = LocalTexts.current
-    val (label, dot) = when (state.status) {
-        LiveSessionManager.Status.IDLE -> texts.offline to Color.Gray
-        LiveSessionManager.Status.CONNECTING -> texts.connecting to Color(0xFFF2B544)
-        LiveSessionManager.Status.LIVE -> when {
-            state.speaking -> "${texts.live} · ${texts.speaking}" to accent
-            state.micOn -> "${texts.live} · ${texts.listening}" to Color(0xFF4CD39A)
-            else -> texts.live to Color(0xFF4CD39A)
-        }
+    val (icon, label, color) = when (state.status) {
+        LiveSessionManager.Status.IDLE -> Triple(Lucide.WifiOff, texts.offline, MaterialTheme.colorScheme.onSurfaceVariant)
+        LiveSessionManager.Status.CONNECTING -> Triple(Lucide.Loader, texts.connecting, MaterialTheme.colorScheme.onSurfaceVariant)
+        LiveSessionManager.Status.LIVE -> Triple(
+            Lucide.Wifi,
+            texts.live + (state.activeModel?.let { " · $it" } ?: ""),
+            if (state.speaking) accent else MaterialTheme.colorScheme.primary,
+        )
     }
     Row(
-        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(Color.Black.copy(alpha = 0.4f))
-            .padding(horizontal = 10.dp, vertical = 5.dp),
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = ThemeConfig.SPACE_M.dp + 4.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(dot))
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
         Spacer(Modifier.width(6.dp))
-        Text(label, style = MaterialTheme.typography.labelMedium, color = Color.White)
-        val model = state.activeModel
-        if (model != null && state.status == LiveSessionManager.Status.LIVE) {
-            Spacer(Modifier.width(6.dp))
-            Text("· $model", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.7f))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = color)
+        if (state.status == LiveSessionManager.Status.LIVE) {
+            Spacer(Modifier.width(10.dp))
+            val micIcon = if (state.micOn) Lucide.Mic else Lucide.MicOff
+            val micLabel = when {
+                state.speaking -> texts.speaking
+                state.micOn -> texts.listening
+                else -> texts.micMuted
+            }
+            Icon(micIcon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(micLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -412,7 +462,7 @@ private fun NoticeRow(line: ChatLine, onOpenSettings: () -> Unit) {
         NoticeKind.SESSION_ENDED -> texts.sessionEnded
         NoticeKind.SESSION_ERROR -> texts.sessionError.fill(line.noticeArgs)
         NoticeKind.ALL_MODELS_FAILED -> texts.allModelsFailed
-        NoticeKind.API_KEY_MISSING -> texts.apiKeyMissing
+        NoticeKind.API_KEY_MISSING -> texts.apiKeyMissing.fill(line.noticeArgs)
         NoticeKind.MIC_DENIED -> texts.micPermissionDenied
     }
     val isError = kind == NoticeKind.SESSION_ERROR || kind == NoticeKind.ALL_MODELS_FAILED ||

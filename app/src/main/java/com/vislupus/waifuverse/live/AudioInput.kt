@@ -12,13 +12,14 @@ import com.vislupus.waifuverse.config.ModelConfig
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Microphone capture: PCM16 mono at [ModelConfig.INPUT_SAMPLE_RATE], delivered
+ * Microphone capture: PCM16 mono at [sampleRate], delivered
  * in fixed chunks to [onChunk] from a dedicated thread.
  *
  * RECORD_AUDIO permission must already be granted.
  */
 class AudioInput(
     private val mode: AudioMode,
+    private val sampleRate: Int = ModelConfig.INPUT_SAMPLE_RATE,
     private val onChunk: (ByteArray, Int) -> Unit,
 ) {
     private var record: AudioRecord? = null
@@ -35,7 +36,6 @@ class AudioInput(
     @SuppressLint("MissingPermission")
     fun start(): Boolean {
         if (running.get()) return true
-        val sampleRate = ModelConfig.INPUT_SAMPLE_RATE
         val chunkBytes = sampleRate * ModelConfig.INPUT_CHUNK_MS / 1000 * 2
         val minBuffer = AudioRecord.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         if (minBuffer <= 0) return false

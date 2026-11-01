@@ -1,7 +1,8 @@
 # WaifuVerse
 
 A native Android (Kotlin + Jetpack Compose) voice companion app. Talk to anime
-companions in any language through the **Gemini Live API**, with a lip-synced
+companions in any language through the **Gemini Live API** or the **OpenAI
+Realtime API** (chosen per companion), with a lip-synced
 character on screen, editable personalities, conversation memory and history.
 Everything the app creates lives inside its own sandbox folder in a SQLite
 database.
@@ -17,8 +18,9 @@ Minimum Android 8.0 (API 26), target API 35. Package: `com.vislupus.waifuverse`.
    *USB debugging* on the phone.
 2. Clone the repo and open the folder in Android Studio once (it downloads the
    Gradle wrapper and dependencies), **or** just run the commands below.
-3. In the app: *Settings → Gemini API key* (get one at
-   https://aistudio.google.com/apikey).
+3. In the app: *Settings → Gemini API key* (https://aistudio.google.com/apikey)
+   and/or *Settings → OpenAI API key* (https://platform.openai.com/api-keys).
+   Each companion picks its provider on the *Persona* page.
 
 ### One-word commands
 
@@ -63,7 +65,7 @@ behaviour, looks, texts, characters and models is in
 | `ThemeConfig.kt`       | accent colours, light/dark palettes, font sizes, radii, spacing, button sizes             |
 | `TextsConfig.kt`       | every UI string, in English and Bulgarian (add a language here)                           |
 | `CharactersConfig.kt`  | the waifus (name, title, voice, background, accent, personality), prompt template, rooms  |
-| `ModelConfig.kt`       | Gemini model chain + fallbacks, voices, generation defaults, audio settings               |
+| `ModelConfig.kt`       | Gemini and OpenAI model chains + fallbacks, voices, generation defaults, audio settings   |
 
 Assets:
 
@@ -105,21 +107,28 @@ Requires `pip install pillow numpy`.
 
 ## Voice pipeline
 
-* Microphone → PCM16 16 kHz → Gemini Live websocket (`realtimeInput.audio`)
-* Gemini → PCM16 24 kHz → `AudioTrack`; the loudness of what is *currently
+* Two providers behind one `LiveSession` interface:
+  * **Gemini Live**: microphone PCM16 16 kHz → `realtimeInput.audio`; models
+    from `ModelConfig.MODEL_CHAIN` (`gemini-3.8-live` → `gemini-3.1-flash-live-preview` → …)
+  * **OpenAI Realtime**: microphone PCM16 24 kHz → `input_audio_buffer.append`;
+    models from `ModelConfig.OPENAI_MODEL_CHAIN` (`gpt-realtime-1.5` → `gpt-realtime` → …),
+    server-side voice activity detection, transcription with `gpt-4o-mini-transcribe`.
+    The temperature / top-p / top-k sliders apply to Gemini only.
+* Provider → PCM16 24 kHz → `AudioTrack`; the loudness of what is *currently
   heard* drives the mouth frame (lip sync stays in sync with playback, not with
   network arrival)
-* Models are tried in the order of `ModelConfig.MODEL_CHAIN`
-  (`gemini-3.8-live` → `gemini-3.1-flash-live-preview` → …). The first entry
-  can be overridden from Settings. If a model is rejected the next one is used
+* Models are tried in the order of the provider's chain. The first entry can
+  be overridden from Settings. If a model is rejected the next one is used
   automatically and a notice appears in the chat.
 * Interruptions: when you talk over her, playback is flushed instantly.
 * Session resumption: when Gemini announces the session is ending
   (`goAway`), the app reconnects transparently with the resumption handle.
 * Audio mode (Settings): **Voice call** uses the phone-call audio path with
   hardware echo cancellation (recommended hands-free); **Media** gives the
-  highest-fidelity playback and can be combined with *mute mic while she
-  speaks*.
+  highest-fidelity playback but has no echo cancellation, so the microphone
+  is automatically muted while she speaks (half duplex, plus a short tail,
+  `ModelConfig.MIC_UNMUTE_DELAY_MS`). You cannot interrupt her by voice in
+  Media mode; tap the mic/call button instead.
 
 ## Memory and history
 

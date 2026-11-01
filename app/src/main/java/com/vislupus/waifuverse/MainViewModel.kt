@@ -239,11 +239,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun startSession(micGranted: Boolean): Boolean {
         if (live.isSessionActive) return true
         val s = settings.value
-        if (s.apiKey.isBlank()) {
-            addNotice(NoticeKind.API_KEY_MISSING)
+        val w = selectedWaifu ?: return false
+        val apiKey = s.apiKey(w.provider)
+        if (apiKey.isBlank()) {
+            addNotice(NoticeKind.API_KEY_MISSING, mapOf("provider" to w.provider.displayName))
             return false
         }
-        val w = selectedWaifu ?: return false
         if (!micGranted) addNotice(NoticeKind.MIC_DENIED)
         viewModelScope.launch {
             val conversation = ensureConversation() ?: return@launch
@@ -251,8 +252,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val resume = repo.resumeContextFor(conversation.id)
             val prompt = SetupBuilder.systemPrompt(w, memory, resume)
             live.start(
-                apiKey = s.apiKey,
-                modelChain = s.modelChain(),
+                provider = w.provider,
+                apiKey = apiKey,
+                modelChain = s.modelChain(w.provider),
                 waifu = w,
                 systemPrompt = prompt,
                 audioMode = s.audioMode,
