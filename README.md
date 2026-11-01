@@ -44,6 +44,7 @@ installation from this source. Then add your Gemini and/or OpenAI API key in
 | `make run`     | build + install + launch                                          |
 | `make build`   | compile a debug APK → `app/build/outputs/apk/debug/WaifuVerse-<version>-debug.apk` |
 | `make release` | compile a release APK → `app/build/outputs/apk/release/WaifuVerse-<version>.apk` |
+| `make publish` | build the release APK and publish it as a GitHub Release (needs the `gh` CLI) |
 | `make watch`   | rebuild + reinstall + relaunch automatically on every file change |
 | `make logs`    | show the app's log output                                         |
 | `make preview` | open the project in Android Studio for Compose previews           |
@@ -56,7 +57,9 @@ The same scripts exist as `scripts/*.sh` (macOS/Linux/Git Bash) and
 
 ### Publishing a release
 
-Bump `versionCode` / `versionName` in `app/build.gradle.kts`, then push a tag:
+Bump `versionCode` / `versionName` in `app/build.gradle.kts`, then either run
+`make publish` (builds, tags, creates the GitHub Release and uploads the APK
+through the `gh` CLI), or push a tag:
 
 ```
 git tag v1.0.1

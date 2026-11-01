@@ -4,6 +4,7 @@
 #   make run      build + install + launch
 #   make build    compile debug APK
 #   make release  compile release APK
+#   make publish  build the release APK and publish it as a GitHub Release (needs gh CLI)
 #   make watch    auto rebuild + reinstall on every file change
 #   make logs     show the app's logs
 #   make preview  open the project in Android Studio (Compose previews)
@@ -11,7 +12,7 @@
 #   make icons    regenerate Lucide icons (needs the SVGs in tools/lucide_svg)
 #   make clean    delete build outputs
 
-.PHONY: dev run build release watch logs preview sprites icons clean
+.PHONY: dev run build release publish watch logs preview sprites icons clean
 
 dev:
 	./scripts/dev.sh
@@ -24,6 +25,9 @@ build:
 
 release:
 	./scripts/build.sh release
+
+publish:
+	./scripts/release.sh
 
 watch:
 	./scripts/watch.sh
